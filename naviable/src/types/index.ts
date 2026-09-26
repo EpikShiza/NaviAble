@@ -100,6 +100,36 @@ export interface Helper {
   phone: string | null;
   email: string | null;
   service_area: string | null;
+  profile_id?: string | null;
+}
+
+export type RequestStatus = 'pending' | 'accepted' | 'declined' | 'in_progress' | 'completed' | 'cancelled';
+
+export interface AssistanceRequest {
+  id: string;
+  requester_id: string;
+  helper_id: string;
+  place_id: string | null;
+  request_type: string;
+  description: string | null;
+  location_text: string | null;
+  preferred_time: string | null;
+  status: RequestStatus;
+  decline_reason: string | null;
+  created_at: string;
+  updated_at: string;
+  accepted_at: string | null;
+  completed_at: string | null;
+}
+
+export interface HelperFeedback {
+  id: string;
+  assistance_request_id: string;
+  helper_id: string;
+  requester_id: string;
+  rating: number;
+  comment: string | null;
+  created_at: string;
 }
 
 export interface HelperAvailability {

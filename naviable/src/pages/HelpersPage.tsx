@@ -13,8 +13,13 @@ import {
   HandHeart,
   Languages,
   Calendar,
+  Send,
+  ArrowLeft,
+  AlertCircle,
+  CheckCircle2,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/hooks/useAuth';
 import { DAY_ORDER, DAY_LABELS } from '@/lib/constants';
 import { formatRating, formatDate } from '@/lib/format';
 import type { Helper, HelperAvailability } from '@/types';
@@ -24,13 +29,27 @@ interface HelperWithAvailability extends Helper {
   availability?: HelperAvailability[];
 }
 
-export default function HelpersPage() {
+interface Props {
+  onRequireAuth: () => void;
+  onViewMyRequests: () => void;
+}
+
+export default function HelpersPage({ onRequireAuth, onViewMyRequests }: Props) {
+  const { user, profile } = useAuth();
   const [helpers, setHelpers] = useState<HelperWithAvailability[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [skillFilter, setSkillFilter] = useState('all');
   const [selectedHelper, setSelectedHelper] = useState<HelperWithAvailability | null>(null);
+  const [requestMode, setRequestMode] = useState(false);
+  const [requestType, setRequestType] = useState('');
+  const [requestLocation, setRequestLocation] = useState('');
+  const [requestTime, setRequestTime] = useState('');
+  const [requestDescription, setRequestDescription] = useState('');
+  const [requestSubmitting, setRequestSubmitting] = useState(false);
+  const [requestError, setRequestError] = useState<string | null>(null);
+  const [requestSent, setRequestSent] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -70,6 +89,61 @@ export default function HelpersPage() {
   function getTodayAvailability(helper: HelperWithAvailability): HelperAvailability | undefined {
     const today = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][new Date().getDay()];
     return helper.availability?.find((a) => a.day_of_week === today);
+  }
+
+  function closeModal() {
+    setSelectedHelper(null);
+    setRequestMode(false);
+    setRequestType('');
+    setRequestLocation('');
+    setRequestTime('');
+    setRequestDescription('');
+    setRequestError(null);
+    setRequestSent(false);
+  }
+
+  function openRequestForm(helper: HelperWithAvailability) {
+    if (!user) {
+      onRequireAuth();
+      return;
+    }
+    setRequestType(helper.skills[0] || 'general assistance');
+    setRequestLocation(profile?.city || '');
+    setRequestTime('');
+    setRequestDescription('');
+    setRequestError(null);
+    setRequestSent(false);
+    setRequestMode(true);
+  }
+
+  async function submitRequest() {
+    if (!user || !selectedHelper) return;
+    if (!requestDescription.trim()) {
+      setRequestError('Please describe what you need help with.');
+      return;
+    }
+    if (!requestLocation.trim()) {
+      setRequestError('Please add a location for this request.');
+      return;
+    }
+    setRequestSubmitting(true);
+    setRequestError(null);
+    const { error: err } = await supabase.from('assistance_requests').insert({
+      requester_id: user.id,
+      helper_id: selectedHelper.id,
+      request_type: requestType || 'general assistance',
+      description: requestDescription.trim(),
+      location_text: requestLocation.trim(),
+      preferred_time: requestTime.trim() || null,
+      status: 'pending',
+    });
+    if (err) {
+      setRequestError('Unable to send your request. Please try again.');
+      setRequestSubmitting(false);
+      return;
+    }
+    setRequestSubmitting(false);
+    setRequestSent(true);
   }
 
   return (

@@ -1,12 +1,13 @@
 import { useEffect, useState, useCallback, createContext, useContext } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
-import type { Profile, UserRole } from '@/types';
+import type { ApplicationStatus, Profile, UserRole } from '@/types';
 
 interface AuthState {
   session: Session | null;
   user: User | null;
   profile: Profile | null;
+  applicationStatus: ApplicationStatus | null;
   loading: boolean;
 }
 
@@ -15,6 +16,7 @@ interface AuthContextValue extends AuthState {
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
+  refreshApplicationStatus: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -24,6 +26,7 @@ export function useAuthProvider(): AuthContextValue {
     session: null,
     user: null,
     profile: null,
+    applicationStatus: null,
     loading: true,
   });
 
@@ -40,6 +43,20 @@ export function useAuthProvider(): AuthContextValue {
     return data as Profile | null;
   }, []);
 
+  const loadApplicationStatus = useCallback(async (userId: string): Promise<ApplicationStatus | null> => {
+    const { data, error } = await supabase
+      .from('helper_applications')
+      .select('status')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .maybeSingle();
+    if (error) {
+      console.warn('Application status load error:', error.message);
+      return null;
+    }
+    return (data?.status as ApplicationStatus | undefined) ?? null;
+  }, []);
+
   useEffect(() => {
     let mounted = true;
 
@@ -48,23 +65,27 @@ export function useAuthProvider(): AuthContextValue {
       if (session) {
         (async () => {
           const profile = await loadProfile(session.user.id);
+          const applicationStatus =
+            profile?.role === 'employee' ? await loadApplicationStatus(session.user.id) : null;
           if (!mounted) return;
-          setState({ session, user: session.user, profile, loading: false });
+          setState({ session, user: session.user, profile, applicationStatus, loading: false });
         })();
       } else {
-        setState({ session: null, user: null, profile: null, loading: false });
+        setState({ session: null, user: null, profile: null, applicationStatus: null, loading: false });
       }
     });
 
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT' || !session) {
-        setState({ session: null, user: null, profile: null, loading: false });
+        setState({ session: null, user: null, profile: null, applicationStatus: null, loading: false });
         return;
       }
       (async () => {
         const profile = await loadProfile(session.user.id);
+        const applicationStatus =
+          profile?.role === 'employee' ? await loadApplicationStatus(session.user.id) : null;
         if (!mounted) return;
-        setState({ session, user: session.user, profile, loading: false });
+        setState({ session, user: session.user, profile, applicationStatus, loading: false });
       })();
     });
 
@@ -72,7 +93,7 @@ export function useAuthProvider(): AuthContextValue {
       mounted = false;
       authListener.subscription.unsubscribe();
     };
-  }, [loadProfile]);
+  }, [loadProfile, loadApplicationStatus]);
 
   const signUp = useCallback(
     async (email: string, password: string, role: UserRole, fullName: string): Promise<{ error: string | null }> => {
@@ -88,6 +109,26 @@ export function useAuthProvider(): AuthContextValue {
       if (profileError) {
         return { error: `Account created, but profile setup failed: ${profileError.message}` };
       }
+
+      if (role === 'employee') {
+        // Provision a helpers-directory row right away so this account can
+        // start receiving assistance requests as soon as they apply. It is
+        // filled in with real details when the application is submitted.
+        const { error: helperError } = await supabase.from('helpers').insert({
+          profile_id: data.user.id,
+          name: fullName,
+          bio: '',
+          skills: [],
+          languages: [],
+          verification_status: 'unverified',
+          rating: 0,
+          review_count: 0,
+        });
+        if (helperError) {
+          console.warn('Helper profile provisioning failed:', helperError.message);
+        }
+      }
+
       return { error: null };
     },
     [],
@@ -101,7 +142,7 @@ export function useAuthProvider(): AuthContextValue {
 
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
-    setState({ session: null, user: null, profile: null, loading: false });
+    setState({ session: null, user: null, profile: null, applicationStatus: null, loading: false });
   }, []);
 
   const refreshProfile = useCallback(async () => {
@@ -110,7 +151,13 @@ export function useAuthProvider(): AuthContextValue {
     setState((prev) => ({ ...prev, profile }));
   }, [state.user, loadProfile]);
 
-  return { ...state, signUp, signIn, signOut, refreshProfile };
+  const refreshApplicationStatus = useCallback(async () => {
+    if (!state.user) return;
+    const applicationStatus = await loadApplicationStatus(state.user.id);
+    setState((prev) => ({ ...prev, applicationStatus }));
+  }, [state.user, loadApplicationStatus]);
+
+  return { ...state, signUp, signIn, signOut, refreshProfile, refreshApplicationStatus };
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {

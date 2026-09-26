@@ -22,18 +22,18 @@ export default function ApplicationSubmittedPage({ onContinue }: Props) {
 
           <h2 className="mt-5 font-display text-2xl font-extrabold text-slate-900">Application Submitted!</h2>
           <p className="mt-3 text-sm leading-relaxed text-slate-500">
-            Thank you for applying to become a helper on NaviAble. Our team will review your application,
-            verify your references, and conduct a background check.
+            Thank you for applying to become a helper on NaviAble. Your Helper Dashboard is ready to use —
+            you can start receiving and responding to assistance requests right away.
           </p>
 
           <div className="mt-6 rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200/60">
             <div className="flex items-center justify-center gap-2 text-sm font-medium text-slate-600">
               <Clock className="h-4 w-4 text-teal-500" />
-              Review typically takes 3-5 business days
+              Verification review typically takes 3-5 business days
             </div>
             <p className="mt-2 text-xs text-slate-400">
-              You'll receive an email when your application is approved. Until then, you can browse
-              accessible places and learn from our wheelchair assistance lessons.
+              Our team will still verify your references and background check details — your verified badge
+              will appear once that review is complete.
             </p>
           </div>
 
@@ -41,13 +41,13 @@ export default function ApplicationSubmittedPage({ onContinue }: Props) {
             onClick={onContinue}
             className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-teal-600 py-3.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-teal-700 hover:shadow-md active:scale-[0.98]"
           >
-            Explore NaviAble
+            Go to Helper Dashboard
             <ArrowRight className="h-4 w-4" />
           </button>
         </div>
 
         <p className="mt-6 text-center text-xs text-slate-400">
-          You can check your application status anytime from the Helper Portal.
+          You can update your application anytime from your Helper Dashboard.
         </p>
       </div>
     </div>

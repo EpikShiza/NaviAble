@@ -75,6 +75,24 @@ export const DAY_FULL: Record<string, string> = {
   sunday: 'Sunday',
 };
 
+export const REQUEST_STATUS_LABELS: Record<string, string> = {
+  pending: 'Pending',
+  accepted: 'Accepted',
+  declined: 'Declined',
+  in_progress: 'In Progress',
+  completed: 'Completed',
+  cancelled: 'Cancelled',
+};
+
+export const REQUEST_STATUS_STYLES: Record<string, string> = {
+  pending: 'bg-amber-50 text-amber-700 ring-1 ring-amber-200',
+  accepted: 'bg-blue-50 text-blue-700 ring-1 ring-blue-200',
+  declined: 'bg-red-50 text-red-700 ring-1 ring-red-200',
+  in_progress: 'bg-cyan-50 text-cyan-700 ring-1 ring-cyan-200',
+  completed: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200',
+  cancelled: 'bg-slate-100 text-slate-500 ring-1 ring-slate-200',
+};
+
 export const WAYPOINT_COLORS: Record<string, string> = {
   start: '#22c55e',
   checkpoint: '#3b82f6',

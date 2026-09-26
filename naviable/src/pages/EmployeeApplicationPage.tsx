@@ -60,7 +60,7 @@ const SKILL_OPTIONS = [
 const LANGUAGE_OPTIONS = ['English', 'Spanish', 'French', 'German', 'Mandarin', 'Hindi', 'Punjabi', 'Igbo', 'Portuguese', 'Arabic', 'British Sign Language'];
 
 export default function EmployeeApplicationPage({ onBack, onComplete }: Props) {
-  const { user, profile } = useAuth();
+  const { user, profile, refreshApplicationStatus } = useAuth();
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -192,6 +192,34 @@ export default function EmployeeApplicationPage({ onBack, onComplete }: Props) {
       if (err) { setError(err.message); setSaving(false); return; }
       if (data) setAppId((data as HelperApplication).id);
     }
+
+    // Sync the public helpers directory row so travelers see real details
+    // and can start sending this helper assistance requests right away.
+    const helperPayload = {
+      name: form.full_name,
+      phone: form.phone || null,
+      bio: form.bio || null,
+      skills: form.skills,
+      languages: form.languages,
+      years_experience: form.years_experience,
+      service_area: form.service_area || form.city || null,
+    };
+    const { error: helperSyncError } = await supabase
+      .from('helpers')
+      .update(helperPayload)
+      .eq('profile_id', user.id);
+    if (helperSyncError) {
+      // Older accounts created before helper auto-provisioning existed may
+      // not have a row yet — create one now rather than blocking submission.
+      const { error: helperInsertError } = await supabase
+        .from('helpers')
+        .insert({ ...helperPayload, profile_id: user.id, verification_status: 'unverified', rating: 0, review_count: 0 });
+      if (helperInsertError) {
+        console.warn('Helper directory sync failed:', helperInsertError.message);
+      }
+    }
+
+    await refreshApplicationStatus();
     setSaving(false);
     onComplete();
   }
@@ -213,8 +241,9 @@ export default function EmployeeApplicationPage({ onBack, onComplete }: Props) {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-slate-50">
         <Loader2 className="h-8 w-8 animate-spin text-teal-500" />
+        <p className="text-sm text-slate-400">Loading your application…</p>
       </div>
     );
   }
